@@ -20,35 +20,58 @@ class HTML5FileExplorer {
   /**
    * Create the HTML5FileExplorer app.
    */
-  constructor(directoryHandle) {
-    this._directoryHistory = [];
-    this._directoryPosition = 0;
+  constructor(handle) {
+    this._cwd = null;
+    this._pathBack = [];
+    this._pathForward = [];
+
+    this._footer = document.getElementById('footer');
+    this._headerText = document.querySelector('header h1');
     this._container = document.querySelector('.file-container-inner');
     this._previewContainer = document.getElementById('preview-container');
     this._previewTitle = document.querySelector('#dialogPreview .dialog-title');
-    this._backButton = document.getElementById('butBack');
-    this._forwardButton = document.getElementById('butForward');
-    this._headerText = document.querySelector('header h1');
-    this._directoryHistory.push(directoryHandle);
+
     this._showDialog('dialogStart', false);
-    this._showDirectory();
+    this._navOpen(handle);
+
+    this._backButton = document.getElementById('butBack');
     this._backButton.addEventListener('click', () => {
-      if (this._directoryPosition > 0) {
-        this._directoryPosition--;
-        this._showDirectory(this._directoryPosition);
-      }
+      this._navBack();
     });
+
+    this._forwardButton = document.getElementById('butForward');
     this._forwardButton.addEventListener('click', () => {
-      if (this._directoryPosition <= this._directoryHistory.length) {
-        this._directoryPosition++;
-        this._showDirectory(this._directoryPosition);
-      }
+      this._navForward();
     });
     this._initDialogs();
   }
 
-  _getCWD() {
-    return this._directoryHistory[this._directoryPosition];
+  _navBack() {
+    if (this._pathBack.length > 0) {
+      this._pathForward.push(this._cwd);
+      this._cwd = this._pathBack.pop();
+      this._showDirectory();
+      this._footer.removeChild(this._footer.lastChild);
+    }
+  }
+
+  _navForward() {
+    if (this._pathForward.length > 0) {
+      this._pathBack.push(this._cwd);
+      this._cwd = this._pathForward.pop();
+      this._showDirectory();
+      this._updateFooter(this._cwd.name);
+    }
+  }
+
+  _navOpen(handle) {
+    if (this._cwd) {
+      this._pathBack.push(this._cwd);
+    }
+    this._cwd = handle;
+    this._pathForward = [];
+    this._showDirectory();
+    this._updateFooter(this._cwd.name);
   }
 
   _showDialog(id, visible) {
@@ -76,6 +99,18 @@ class HTML5FileExplorer {
     this._container = inner;
   }
 
+  async _showDirectory() {
+    this._clearFolder();
+
+    const cwd = this._cwd;
+    this._headerText.textContent = cwd.name;
+    const entries = await cwd.getEntries();
+    for await (const entry of entries) {
+      this._addEntry(entry);
+    }
+    this._updateBackForward();
+  }
+
   _addEntry(entry) {
     const entryContainer = document.createElement('div');
     entryContainer.className = 'entry';
@@ -90,32 +125,19 @@ class HTML5FileExplorer {
     const filename = document.createElement('span');
     filename.textContent = entry.name;
     entryContainer.appendChild(filename);
-    // console.log('ff', entry);
     entryContainer.addEventListener('dblclick', () => {
       if (entry.isDirectory) {
-        this._openDirectory(entry);
-        // this._directoryHistory.push(entry);
-        // this._directoryPosition = this._directoryHistory.length - 1;
-        // console.log('l', this._directoryHistory.length, 'i', this._directoryPosition)
-
-        this._showDirectory();
-        return;
+        return this._navOpen(entry);
       }
       return this._previewFile(entry);
     });
     this._container.appendChild(entryContainer);
   }
 
-  _openDirectory(entry) {
-    const index = this._directoryPosition;
-    const numEntries = this._directoryHistory.length;
-    console.log('l', numEntries, 'i', index)
-    if (numEntries === index + 1) {
-      this._directoryHistory.push(entry);
-      this._directoryPosition = this._directoryHistory.length - 1;
-    } else {
-      console.log('here', 'l', numEntries, 'i', index);
-    }
+  _updateFooter(directoryName) {
+    const elem = document.createElement('span');
+    elem.textContent = `/${directoryName}`;
+    this._footer.appendChild(elem);
   }
 
   async _previewFile(handle) {
@@ -165,42 +187,13 @@ class HTML5FileExplorer {
     return true;
   }
 
-  async _showDirectory() {
-    this._clearFolder();
-    const index = this._directoryPosition;
-    const handle = this._directoryHistory[index];
-    this._headerText.textContent = handle.name;
-    const entries = await handle.getEntries();
-    for await (const entry of entries) {
-      this._addEntry(entry);
-    }
-    this._updateBackForward();
-    this._updatePath();
-  }
-
-  _updatePath() {
-    const footer = document.getElementById('footer');
-    const index = this._directoryPosition;
-    if (index === this._directoryHistory.length - 1) {
-      console.log('append', this._getCWD().name);
-      const elem = document.createElement('span');
-      elem.textContent = `/${this._getCWD().name}`;
-      footer.appendChild(elem);
-    } else {
-      const elem = footer.lastChild;
-      footer.removeChild(elem);
-      // console.log('remove');
-    }
-  }
-
   _updateBackForward() {
-    const index = this._directoryPosition;
-    if (index === 0) {
-      this._backButton.setAttribute('disabled', true);
-    } else {
+    if (this._pathBack.length > 0) {
       this._backButton.removeAttribute('disabled');
+    } else {
+      this._backButton.setAttribute('disabled', true);
     }
-    if (index < this._directoryHistory.length - 1) {
+    if (this._pathForward.length > 0) {
       this._forwardButton.removeAttribute('disabled');
     } else {
       this._forwardButton.setAttribute('disabled', true);
