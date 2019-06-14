@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<!--
+Copyright 2019 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Author: Pete LePage (petele@google.com)
+-->
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HTML5 File Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <!-- Pre-connect to font server -->
+  <link rel="preconnect" href="https://fonts.gstatic.com/">
+
+  <!-- SEO description and info -->
+  <meta name="description" content="HTML5 File Explorer">
+  <!-- <link rel="canonical" href="TODO"> -->
+
+  <!-- Manifest and icons -->
+  <!-- <link rel="manifest" href="/TODO.json"> -->
+  <!-- <link rel="icon" href="/TODO/favicon.ico"> -->
+  <meta name="theme-color" content="#37474F">
+
+  <!-- Add to homescreen for Chrome on Android. -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="File5">
+
+  <!-- Tile icon for Windows 8 (144x144 + tile color) -->
+  <meta name="msapplication-TileImage" content="/icons/144.png">
+  <meta name="msapplication-TileColor" content="#37474F">
+  <meta name="msapplication-tap-highlight" content="no">
+
+  <!-- Default twitter cards -->
+  <meta name="twitter:card" content="summary">
+  <!-- <meta name="twitter:url" content="TODO"> -->
+  <meta name="twitter:title" content="File5">
+  <meta name="twitter:description" content="HTML5 File Explorer">
+  <!-- <meta name="twitter:image" content="https://sounddrown.app/icons/192.png"> -->
+  <meta name="twitter:creator" content="@petele">
+
+  <!-- Other sharing -->
+  <meta property="og:title" content="File5">
+  <meta property="og:type" content="website">
+  <!-- <meta property="og:image" content="https://sounddrown.app/icons/192.png"> -->
+  <!-- <meta property="og:url" content="https://sounddrown.app/"> -->
+  <meta property="og:description" content="HTML5 File Explorer">
+
+  <script>
+    /* eslint-disable */
+    // window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+    // ga('create', 'UA-9988000-28', 'auto');
+    // ga('set', 'transport', 'beacon');
+    /* esline-enable */
+  </script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/styles/file5.css">
+
+</head>
+<body>
+
+  <header>
+    <button id="butShare" class="hidden">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="#fff">
+        <path d="M0 0h24v24H0z" fill="none"/>
+        <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+      </svg>
+    </button>
+    <h1>
+      File5
+    </h1>
+  </header>
+
+  <div class="file-container">
+    <div class="file-container-inner grid">
+
+    </div>
+  </div>
+
+  <div class="hidden" id="dialogContainer">
+    <div id="dialogOverlay">
+    </div>
+
+    <div class="dialog" id="dialogStart">
+      <div class="dialog-title">
+        HTML5 File Explorer
+      </div>
+      <div class="dialog-body">
+        <p>
+          <!-- TODO: Update description -->
+          A Command-line terminal/shell running on top of the native file system
+          APIs.
+        </p>
+        <p>
+          The native file system API is <span class="red bold notSupported">not</span>
+          supported on this browser. <span class="notSupported">If you're running
+          Chrome, you can try enabling the <code>#native-file-system-api</code>
+          flag in <code>chrome://flags</code>.</span>
+        </p>
+      </div>
+      <div class="dialog-buttons">
+        <button id="butStart" disabled type="button">Open Folder</button>
+      </div>
+    </div>
+
+    <div class="dialog" id="dialogPreview">
+      <div class="dialog-title">
+        Preview
+      </div>
+      <div class="dialog-body">
+      </div>
+      <div class="dialog-buttons">
+        <button type="button" class="close">Close</button>
+      </div>
+    </div>
+
+    <div class="dialog" id="dialogAbout">
+      <div class="dialog-title">
+        About
+      </div>
+      <div class="dialog-body">
+        <p>
+          <b>File5</b> TODO.
+        </p>
+        <p>
+          <b>Author:</b> <a href="https://github.com/petele">Pete LePage</a><br>
+          <b>Version:</b> [[VERSION]]<br>
+          <b>Build date:</b> [[BUILD_DATE]]<br>
+          <a href="https://github.com/petele/HTML5FileExplorer">
+            Source code on GitHub
+          </a>
+        </p>
+      </div>
+      <div class="dialog-buttons">
+        <button type="button" class="close">Close</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/scripts/file5.js" async></script>
+  <script src="/scripts/dialog.js"></script>
+  <script>
+
+    const dialogStart = new Dialog('dialogStart');
+    const dialogAbout = new Dialog('dialogAbout');
+    const dialogPreview = new Dialog('dialogPreview');
+    dialogStart.show(true);
+
+    const butStart = document.getElementById('butStart');
+    butStart.addEventListener('click', (e) => {
+      const opts = {
+        type: 'openDirectory',
+        multiple: false,
+      };
+      window.chooseFileSystemEntries(opts)
+          .then((handle) => {
+            dialogStart.show(false);
+            window.file5 = new HTML5FileExplorer(handle);
+          })
+          .catch((err) => {
+            console.log('err', err);
+          });
+    });
+
+    if (window.chooseFileSystemEntries) {
+      butStart.removeAttribute('disabled');
+      const elems = document.querySelectorAll('.notSupported');
+      elems.forEach((elem) => {
+        elem.classList.add('hidden');
+      });
+    }
+
+  </script>
+
+</body>
+</html>
