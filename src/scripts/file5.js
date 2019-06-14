@@ -114,6 +114,7 @@ class HTML5FileExplorer {
   _addEntry(entry) {
     const entryContainer = document.createElement('div');
     entryContainer.className = 'entry';
+    entryContainer.draggable = true;
     entryContainer.entry = entry;
     const img = document.createElement('img');
     if (entry.isDirectory) {
@@ -199,4 +200,15 @@ class HTML5FileExplorer {
       this._forwardButton.setAttribute('disabled', true);
     }
   }
+
+  // const pete = document.getElementById('pete');
+  // pete.addEventListener('keydown', (e) => {
+  //   console.log(e.keyCode);
+  //   if (e.keyCode === 13) {
+  //     e.preventDefault();
+  //     document.body.focus();
+  //     console.log(pete.textContent);
+  //     pete.removeAttribute('contenteditable');
+  //   }
+  // });
 }

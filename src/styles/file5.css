@@ -178,14 +178,12 @@ footer {
 .bold { font-weight: bold; }
 
 
-.grid a.entry {
-  color: var( --app-primary-color);
-  text-decoration: none;
-}
 
-.grid .file-container-inner div {
+.grid .file-container-inner div.entry {
   width: 150px;
   margin-bottom: 16px;
+  user-select: none;
+  user-drag: element;
 }
 
 .grid .entry img,
