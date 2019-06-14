@@ -57,24 +57,45 @@ body {
 
 header {
   background-color: var(--app-header-bg);
-  color: white;
+  color: var(--app-header-color);
+  display: flex;
   padding-top: env(safe-area-inset-top);
   width: 100%;
 }
 
 header h1 {
   /* font-family: "Pacifico", cursive, serif; */
-  text-align: center;
+  flex-grow: 1;
   padding: 0.4em;
   margin: 0;
 }
 
-header #butShare {
+header button {
   background-color: transparent;
   border: none;
-  padding: 24px;
-  position: absolute;
-  right: 0;
+  /* padding: 24px; */
+  /* position: absolute; */
+  /* right: 0; */
+}
+
+header button svg {
+  width: 24px;
+  fill: var(--app-header-color);
+}
+
+header button.selected svg {
+  fill: blue;
+}
+
+header button[disabled] {
+  opacity: 0.5;
+}
+
+footer {
+  background-color: var(--app-header-bg);
+  color: var(--app-header-color);
+  width: 100%;
+  padding: 0.25em;
 }
 
 #dialogContainer {
@@ -131,19 +152,26 @@ header #butShare {
   background-color: inherit;
 }
 
+#dialogPreview pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
 .file-container {
-  align-items: center;
+  align-items: start;
+  margin: 8px;
   display: flex;
   flex-grow: 1;
   justify-content: center;
-  margin-top: -120px;
+  /* margin-top: -120px; */
 }
 
 .file-container-inner {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  justify-content: center;
+  /* justify-content: center; */
 }
 
 .red { color: red; }
@@ -155,7 +183,7 @@ header #butShare {
   text-decoration: none;
 }
 
-.grid div {
+.grid .file-container-inner div {
   width: 150px;
   margin-bottom: 16px;
 }

@@ -8,7 +8,6 @@ class Dialog {
    */
   constructor(divID) {
     this._elem = document.getElementById(divID);
-    console.log(this._elem);
     this._container = document.getElementById('dialogContainer');
     this.show(false);
     const elems = this._elem.querySelectorAll('button.close');
@@ -17,9 +16,6 @@ class Dialog {
         this.show(false);
       });
     });
-    // closeButton.addEventListener('click', () => {
-    //   this.show(false);
-    // });
   }
   /**
    * Shows or hides the dialog.
