@@ -34,6 +34,11 @@ class HTML5FileExplorer {
     this._showDialog('dialogStart', false);
     this._navOpen(handle);
 
+    this._butRefresh = document.getElementById('butRefresh');
+    this._butRefresh.addEventListener('click', () => {
+      this._showDirectory();
+    });
+
     this._backButton = document.getElementById('butBack');
     this._backButton.addEventListener('click', () => {
       this._navBack();
@@ -43,7 +48,32 @@ class HTML5FileExplorer {
     this._forwardButton.addEventListener('click', () => {
       this._navForward();
     });
+
+    document.addEventListener('keydown', (e) => {
+      this._handleKeystroke(e);
+    });
+
     this._initDialogs();
+  }
+
+  _handleKeystroke(e) {
+    const keyCode = e.keyCode;
+    console.log('keystroke', e, keyCode);
+    if (keyCode === 8) {
+      e.preventDefault();
+      console.log('DELETE');
+      return;
+    }
+    if (e.metaKey && keyCode === 82) {
+      e.preventDefault();
+      this._showDirectory();
+      return;
+    }
+    if (e.metaKey && e.shiftKey && keyCode === 78) {
+      e.preventDefault();
+      console.log('NEW DIRECTORY');
+      return;
+    }
   }
 
   _navBack() {
@@ -126,6 +156,13 @@ class HTML5FileExplorer {
     const filename = document.createElement('span');
     filename.textContent = entry.name;
     entryContainer.appendChild(filename);
+    // TODO: change this to something more reasonable
+    // filename.addEventListener('click', () => {
+    //   this._startRename(entryContainer);
+    // });
+    entryContainer.addEventListener('click', () => {
+      this._selectItem(entryContainer);
+    });
     entryContainer.addEventListener('dblclick', () => {
       if (entry.isDirectory) {
         return this._navOpen(entry);
@@ -133,6 +170,40 @@ class HTML5FileExplorer {
       return this._previewFile(entry);
     });
     this._container.appendChild(entryContainer);
+  }
+
+  _selectItem(elem) {
+    const elems = document.querySelectorAll('.entry.selected');
+    elems.forEach((e) => {
+      e.classList.remove('selected');
+    });
+    if (elem) {
+      elem.classList.add('selected');
+    }
+  }
+
+  _startRename(elem) {
+    const filenameElem = elem.querySelector('span');
+    const prevFilename = filenameElem.textContent;
+    filenameElem.contentEditable = true;
+    filenameElem.focus();
+    filenameElem.addEventListener('keydown', (e) => {
+      const keyCode = e.keyCode;
+      if (keyCode === 13 || keyCode === 27) {
+        e.preventDefault();
+        filenameElem.removeAttribute('contenteditable');
+        if (keyCode === 27) {
+          filename.textContent = prevFilename;
+          return;
+        }
+        this._executeRename(elem.entry, filenameElem.textContent);
+      }
+    });
+  }
+
+  _executeRename(handle, newFilename) {
+    console.log('RENAME', handle, newFilename);
+    // handle.name = newFilename;
   }
 
   _updateFooter(directoryName) {
@@ -200,15 +271,4 @@ class HTML5FileExplorer {
       this._forwardButton.setAttribute('disabled', true);
     }
   }
-
-  // const pete = document.getElementById('pete');
-  // pete.addEventListener('keydown', (e) => {
-  //   console.log(e.keyCode);
-  //   if (e.keyCode === 13) {
-  //     e.preventDefault();
-  //     document.body.focus();
-  //     console.log(pete.textContent);
-  //     pete.removeAttribute('contenteditable');
-  //   }
-  // });
 }

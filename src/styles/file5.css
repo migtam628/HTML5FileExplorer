@@ -163,7 +163,7 @@ footer {
   margin: 8px;
   display: flex;
   flex-grow: 1;
-  justify-content: center;
+  justify-content: flex-start;
   /* margin-top: -120px; */
 }
 
@@ -171,6 +171,7 @@ footer {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
+  align-items: start;
   /* justify-content: center; */
 }
 
@@ -184,6 +185,19 @@ footer {
   margin-bottom: 16px;
   user-select: none;
   user-drag: element;
+}
+
+.entry.selected {
+  background-color: #ccc;
+  border-radius: 4px;
+}
+
+.entry.selected img {}
+
+.entry.selected span {
+  background-color: blue;
+  color:white;
+  border-radius: 0 0 4px 4px;
 }
 
 .grid .entry img,
