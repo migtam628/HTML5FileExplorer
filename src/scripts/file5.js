@@ -21,11 +21,15 @@ class HTML5FileExplorer {
    * Create the HTML5FileExplorer app.
    */
   constructor(handle) {
-    this._cwd = null;
-    this._pathBack = [];
-    this._pathForward = [];
+    this._cwd = handle;
+    this._history = {
+      back: [],
+      forward: [],
+    };
+    this._path = `/${handle.name}`;
+    this._depth = 0;
 
-    // history.replaceState(0, null, `#${handle.name}`);
+    history.replaceState({depth: this._depth}, null, `#!/${handle.name}`);
 
     this._footer = document.getElementById('footer');
     this._headerText = document.querySelector('header h1');
@@ -34,21 +38,21 @@ class HTML5FileExplorer {
     this._previewTitle = document.querySelector('#dialogPreview .dialog-title');
 
     this._showDialog('dialogStart', false);
-    this._navOpen(handle);
+    this._renderDirectory();
 
     this._butRefresh = document.getElementById('butRefresh');
     this._butRefresh.addEventListener('click', () => {
-      this._showDirectory();
+      this._renderDirectory();
     });
 
     this._backButton = document.getElementById('butBack');
     this._backButton.addEventListener('click', () => {
-      this._navBack();
+      window.history.back();
     });
 
     this._forwardButton = document.getElementById('butForward');
     this._forwardButton.addEventListener('click', () => {
-      this._navForward();
+      window.history.forward();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -60,10 +64,13 @@ class HTML5FileExplorer {
     });
 
     window.addEventListener('popstate', (e) => {
-      // TODO: History
-      // console.log('e', e);
-      // e.preventDefault();
-      // this._navBack();
+      const curDepth = this._depth;
+      const newDepth = e.state.depth;
+      if (newDepth < curDepth) {
+        this._navBack();
+      } else if (newDepth > curDepth) {
+        this._navForward();
+      }
     });
 
     this._initDialogs();
@@ -117,7 +124,7 @@ class HTML5FileExplorer {
     // Refresh directory (WIN/APPLE+r)
     if (e.metaKey && key === 'r') {
       e.preventDefault();
-      this._showDirectory();
+      this._renderDirectory();
       return;
     }
 
@@ -131,35 +138,35 @@ class HTML5FileExplorer {
   }
 
   _navBack() {
-    // TODO: History API
-    if (this._pathBack.length > 0) {
-      this._pathForward.push(this._cwd);
-      this._cwd = this._pathBack.pop();
-      this._showDirectory();
-      this._footer.removeChild(this._footer.lastChild);
+    if (this._history.back.length === 0) {
+      return;
     }
+    this._history.forward.push(this._cwd);
+    this._cwd = this._history.back.pop();
+    this._depth--;
+    this._path = this._path.substr(0, this._path.lastIndexOf('/'));
+    this._renderDirectory();
   }
 
   _navForward() {
-    // TODO: History API
-    if (this._pathForward.length > 0) {
-      this._pathBack.push(this._cwd);
-      this._cwd = this._pathForward.pop();
-      this._showDirectory();
-      this._updateFooter(this._cwd.name);
+    if (this._history.forward.length === 0) {
+      return;
     }
+    this._history.back.push(this._cwd);
+    this._cwd = this._history.forward.pop();
+    this._depth++;
+    this._path += `/${this._cwd.name}`;
+    this._renderDirectory();
   }
 
-  _navOpen(handle) {
-    // TODO: History API
-    if (this._cwd) {
-      this._pathBack.push(this._cwd);
-    }
-    this._cwd = handle;
-    // window.location = `#${handle.name}`
-    this._pathForward = [];
-    this._showDirectory();
-    this._updateFooter(this._cwd.name);
+  _navOpen(newDir) {
+    this._history.back.push(this._cwd);
+    this._history.forward = [];
+    this._cwd = newDir;
+    this._depth++;
+    this._path += `/${newDir.name}`;
+    this._renderDirectory();
+    history.pushState({depth: this._depth}, null, `#!${this._path}`);
   }
 
   _showDialog(id, visible) {
@@ -181,23 +188,21 @@ class HTML5FileExplorer {
   }
 
   _clearFolder() {
-    console.log('clear');
-    // debugger;
     const inner = document.createElement('div');
     inner.className = 'file-container-inner';
     this._container.replaceWith(inner);
     this._container = inner;
   }
 
-  async _showDirectory() {
+  async _renderDirectory() {
     this._clearFolder();
-
     const cwd = this._cwd;
     this._headerText.textContent = cwd.name;
     const entries = await cwd.getEntries();
     for await (const entry of entries) {
       this._addEntry(entry);
     }
+    this._footer.textContent = this._path;
     this._updateBackForward();
   }
 
@@ -293,20 +298,6 @@ class HTML5FileExplorer {
     this._clearSelected();
   }
 
-  _updateFooter(directoryName) {
-    const elem = document.createElement('span');
-    elem.textContent = `/${directoryName}`;
-    this._footer.appendChild(elem);
-    // if (window.location.hash) {
-    //   const p = window.location.hash + `/${directoryName}`
-    //   console.log('z', window.location.hash, directoryName);
-    //   history.pushState(null, 'title', p)
-    //   // window.location.hash += `/${directoryName}`;
-    // } else {
-    //   window.location.hash = `#${directoryName}`;
-    // }
-  }
-
   async _previewFile(handle) {
     try {
       const file = await handle.getFile();
@@ -355,12 +346,12 @@ class HTML5FileExplorer {
   }
 
   _updateBackForward() {
-    if (this._pathBack.length > 0) {
+    if (this._history.back.length > 0) {
       this._backButton.removeAttribute('disabled');
     } else {
       this._backButton.setAttribute('disabled', true);
     }
-    if (this._pathForward.length > 0) {
+    if (this._history.forward.length > 0) {
       this._forwardButton.removeAttribute('disabled');
     } else {
       this._forwardButton.setAttribute('disabled', true);
