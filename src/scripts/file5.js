@@ -76,6 +76,13 @@ class HTML5FileExplorer {
     this._initDialogs();
   }
 
+  _itemsPerRow(item, container) {
+    const itemWidth = item.offsetWidth;
+    const containerWidth = container.offsetWidth;
+    const itemsPerRow = Math.floor(containerWidth / itemWidth);
+    return itemsPerRow;
+  }
+
   _handleKeystroke(e) {
     const key = e.key;
     const keyCode = e.keyCode;
@@ -83,7 +90,7 @@ class HTML5FileExplorer {
     // TODO: Handle CTRL-N: Create new directory
 
     // Rename entry if only 1 is selected
-    if (key === 'Enter') {
+    if ((key === 'Enter') || (e.metaKey && key === 'ArrowDown')) {
       e.preventDefault();
       const selectedElems = this._getSelectedItems();
       if (selectedElems.length === 1) {
@@ -95,21 +102,36 @@ class HTML5FileExplorer {
     // Arrow keys
     if (keyCode >= 37 && keyCode <= 40) {
       e.preventDefault();
+      let newElem = null;
       const selectedElems = this._getSelectedItems();
-      if (selectedElems.length === 1) {
-        let newElem = null;
+      if (selectedElems.length === 0) {
+        newElem = this._container.firstChild;
+      } else if (selectedElems.length === 1) {
+        const curElem = selectedElems[0];
         if (key === 'ArrowRight') {
-          newElem = selectedElems[0].nextSibling;
+          newElem = curElem.nextSibling;
         } else if (key === 'ArrowLeft') {
-          newElem = selectedElems[0].previousSibling;
+          newElem = curElem.previousSibling;
         } else if (key === 'ArrowDown') {
-          window.alert('TODO: ArrowDown');
+          const itemsPerRow = this._itemsPerRow(curElem, this._container);
+          newElem = curElem;
+          for (let i = 0; i < itemsPerRow; i++) {
+            if (newElem.nextSibling) {
+              newElem = newElem.nextSibling;
+            }
+          }
         } else {
-          window.alert('TODO: ArrowUp');
+          const itemsPerRow = this._itemsPerRow(curElem, this._container);
+          newElem = curElem;
+          for (let i = 0; i < itemsPerRow; i++) {
+            if (newElem.previousSibling) {
+              newElem = newElem.previousSibling;
+            }
+          }
         }
-        if (newElem) {
-          this._selectItem(newElem);
-        }
+      }
+      if (newElem) {
+        this._selectItem(newElem);
       }
       return;
     }
