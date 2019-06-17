@@ -36,6 +36,7 @@
   },
   "scripts": {
     "prepush": "gulp lint",
-    "serve": "gulp serve"
+    "serve": "gulp serve",
+    "start": "gulp serve"
   }
 }

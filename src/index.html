@@ -215,6 +215,7 @@ Author: Pete LePage (petele@google.com)
 
     if (window.chooseFileSystemEntries) {
       butStart.removeAttribute('disabled');
+      butStart.setAttribute('autofocus', true);
       const elems = document.querySelectorAll('.notSupported');
       elems.forEach((elem) => {
         elem.classList.add('hidden');

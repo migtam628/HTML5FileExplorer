@@ -172,11 +172,15 @@ class HTML5FileExplorer {
     this._container.appendChild(entryContainer);
   }
 
-  _selectItem(elem) {
+  _clearSelected() {
     const elems = document.querySelectorAll('.entry.selected');
     elems.forEach((e) => {
       e.classList.remove('selected');
     });
+  }
+
+  _selectItem(elem) {
+    this._clearSelected();
     if (elem) {
       elem.classList.add('selected');
     }
