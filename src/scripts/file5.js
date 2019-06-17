@@ -25,6 +25,8 @@ class HTML5FileExplorer {
     this._pathBack = [];
     this._pathForward = [];
 
+    // history.replaceState(0, null, `#${handle.name}`);
+
     this._footer = document.getElementById('footer');
     this._headerText = document.querySelector('header h1');
     this._container = document.querySelector('.file-container-inner');
@@ -53,30 +55,83 @@ class HTML5FileExplorer {
       this._handleKeystroke(e);
     });
 
+    document.addEventListener('click', (e) => {
+      this._clearSelected();
+    });
+
+    window.addEventListener('popstate', (e) => {
+      // TODO: History
+      // console.log('e', e);
+      // e.preventDefault();
+      // this._navBack();
+    });
+
     this._initDialogs();
   }
 
   _handleKeystroke(e) {
+    const key = e.key;
     const keyCode = e.keyCode;
-    console.log('keystroke', e, keyCode);
-    if (keyCode === 8) {
+
+    // TODO: Handle CTRL-N: Create new directory
+
+    // Rename entry if only 1 is selected
+    if (key === 'Enter') {
       e.preventDefault();
-      console.log('DELETE');
+      const selectedElems = this._getSelectedItems();
+      if (selectedElems.length === 1) {
+        this._makeFilenameEditable(selectedElems[0]);
+      }
       return;
     }
-    if (e.metaKey && keyCode === 82) {
+
+    // Arrow keys
+    if (keyCode >= 37 && keyCode <= 40) {
+      e.preventDefault();
+      const selectedElems = this._getSelectedItems();
+      if (selectedElems.length === 1) {
+        let newElem = null;
+        if (key === 'ArrowRight') {
+          newElem = selectedElems[0].nextSibling;
+        } else if (key === 'ArrowLeft') {
+          newElem = selectedElems[0].previousSibling;
+        } else if (key === 'ArrowDown') {
+          window.alert('TODO: ArrowDown');
+        } else {
+          window.alert('TODO: ArrowUp');
+        }
+        if (newElem) {
+          this._selectItem(newElem);
+        }
+      }
+      return;
+    }
+
+    // Delete file
+    if (key === 'Delete') {
+      e.preventDefault();
+      this._executeDelete();
+      return;
+    }
+
+    // Refresh directory (WIN/APPLE+r)
+    if (e.metaKey && key === 'r') {
       e.preventDefault();
       this._showDirectory();
       return;
     }
-    if (e.metaKey && e.shiftKey && keyCode === 78) {
-      e.preventDefault();
-      console.log('NEW DIRECTORY');
-      return;
-    }
+
+    console.log('_handleKeystroke', key, keyCode, e);
+  }
+
+  _handleKeystrokeElement(e) {
+    const key = e.key;
+    const keyCode = e.keyCode;
+    console.log('_handleKeystrokeElement', e, key, keyCode);
   }
 
   _navBack() {
+    // TODO: History API
     if (this._pathBack.length > 0) {
       this._pathForward.push(this._cwd);
       this._cwd = this._pathBack.pop();
@@ -86,6 +141,7 @@ class HTML5FileExplorer {
   }
 
   _navForward() {
+    // TODO: History API
     if (this._pathForward.length > 0) {
       this._pathBack.push(this._cwd);
       this._cwd = this._pathForward.pop();
@@ -95,10 +151,12 @@ class HTML5FileExplorer {
   }
 
   _navOpen(handle) {
+    // TODO: History API
     if (this._cwd) {
       this._pathBack.push(this._cwd);
     }
     this._cwd = handle;
+    // window.location = `#${handle.name}`
     this._pathForward = [];
     this._showDirectory();
     this._updateFooter(this._cwd.name);
@@ -123,6 +181,8 @@ class HTML5FileExplorer {
   }
 
   _clearFolder() {
+    console.log('clear');
+    // debugger;
     const inner = document.createElement('div');
     inner.className = 'file-container-inner';
     this._container.replaceWith(inner);
@@ -156,14 +216,34 @@ class HTML5FileExplorer {
     const filename = document.createElement('span');
     filename.textContent = entry.name;
     entryContainer.appendChild(filename);
-    // TODO: change this to something more reasonable
-    // filename.addEventListener('click', () => {
-    //   this._startRename(entryContainer);
-    // });
-    entryContainer.addEventListener('click', () => {
+    // TODO: Is this a hack?
+    filename.addEventListener('click', () => {
+      if (entryContainer.classList.contains('selected')) {
+        this._makeFilenameEditable(entryContainer);
+      }
+    });
+    filename.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      const keyCode = e.keyCode;
+      if (keyCode === 13 || keyCode === 27) {
+        e.preventDefault();
+        filename.removeAttribute('contenteditable');
+        if (keyCode === 27) {
+          filename.textContent = entry.name;
+          return;
+        }
+        if (entry.name === filename.textContent) {
+          return;
+        }
+        this._executeRename(entry, filename.textContent);
+      }
+    });
+    entryContainer.addEventListener('click', (e) => {
+      e.stopPropagation();
       this._selectItem(entryContainer);
     });
-    entryContainer.addEventListener('dblclick', () => {
+    entryContainer.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
       if (entry.isDirectory) {
         return this._navOpen(entry);
       }
@@ -172,9 +252,12 @@ class HTML5FileExplorer {
     this._container.appendChild(entryContainer);
   }
 
+  _getSelectedItems() {
+    return document.querySelectorAll('.entry.selected');
+  }
+
   _clearSelected() {
-    const elems = document.querySelectorAll('.entry.selected');
-    elems.forEach((e) => {
+    this._getSelectedItems().forEach((e) => {
       e.classList.remove('selected');
     });
   }
@@ -186,34 +269,42 @@ class HTML5FileExplorer {
     }
   }
 
-  _startRename(elem) {
+  _makeFilenameEditable(elem) {
     const filenameElem = elem.querySelector('span');
-    const prevFilename = filenameElem.textContent;
-    filenameElem.contentEditable = true;
+    filenameElem.setAttribute('contenteditable', true);
+    filenameElem.setAttribute('spellcheck', false);
     filenameElem.focus();
-    filenameElem.addEventListener('keydown', (e) => {
-      const keyCode = e.keyCode;
-      if (keyCode === 13 || keyCode === 27) {
-        e.preventDefault();
-        filenameElem.removeAttribute('contenteditable');
-        if (keyCode === 27) {
-          filename.textContent = prevFilename;
-          return;
-        }
-        this._executeRename(elem.entry, filenameElem.textContent);
-      }
-    });
   }
 
   _executeRename(handle, newFilename) {
-    console.log('RENAME', handle, newFilename);
-    // handle.name = newFilename;
+    window.alert(`TODO: Rename '${handle.name}' to '${newFilename}'`)
+  }
+
+  _executeDelete() {
+    const elems = this._getSelectedItems();
+    if (elems.length === 0) {
+      return;
+    }
+    const files = [];
+    elems.forEach((elem) => {
+      files.push(elem.entry.name);
+    });
+    window.alert(`TODO: Delete files [${files.toString()}]`);
+    this._clearSelected();
   }
 
   _updateFooter(directoryName) {
     const elem = document.createElement('span');
     elem.textContent = `/${directoryName}`;
     this._footer.appendChild(elem);
+    // if (window.location.hash) {
+    //   const p = window.location.hash + `/${directoryName}`
+    //   console.log('z', window.location.hash, directoryName);
+    //   history.pushState(null, 'title', p)
+    //   // window.location.hash += `/${directoryName}`;
+    // } else {
+    //   window.location.hash = `#${directoryName}`;
+    // }
   }
 
   async _previewFile(handle) {
