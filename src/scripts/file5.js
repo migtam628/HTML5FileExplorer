@@ -45,6 +45,11 @@ class HTML5FileExplorer {
       this._renderDirectory();
     });
 
+    this._butHelp = document.getElementById('butHelp');
+    this._butHelp.addEventListener('click', () => {
+      this._showDialog('dialogAbout', true);
+    });
+
     this._backButton = document.getElementById('butBack');
     this._backButton.addEventListener('click', () => {
       window.history.back();
@@ -73,7 +78,50 @@ class HTML5FileExplorer {
       }
     });
 
+    // Setup the DnD listeners for file drop.
+    document.body.addEventListener('dragenter', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('drag-enter');
+      document.body.classList.add('dropping');
+    });
+
+    document.body.addEventListener('dragover', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('drag-over');
+      e.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
+    });
+
+    document.body.addEventListener('dragleave', (e) => {
+      // TODO: Fix this.
+      document.body.classList.remove('dropping');
+      console.log('drag-leave');
+    });
+
+    document.body.addEventListener('drop', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('drop');
+      this._handleDroppedFiles(e.dataTransfer.files);
+      document.body.classList.remove('dropping');
+    });
+
     this._initDialogs();
+  }
+
+  async _handleDroppedFiles(files) {
+    const cwd = this._cwd;
+    console.log('_handleDroppedFiles', files);
+    for await (const file of files) {
+      console.log('f', file);
+      const fileEntry = await cwd.getFile(file.name, {create:true, exclusive: true});
+      console.log('fe', fileEntry);
+      const writer = await fileEntry.createWriter();
+      await writer.write(0, file);
+      await writer.close();
+    }
+    this._renderDirectory();
   }
 
   _itemsPerRow(item, container) {
@@ -307,17 +355,30 @@ class HTML5FileExplorer {
     window.alert(`TODO: Rename '${handle.name}' to '${newFilename}'`)
   }
 
-  _executeDelete() {
+  async _executeDelete() {
     const elems = this._getSelectedItems();
     if (elems.length === 0) {
       return;
     }
-    const files = [];
+    const fileNames = [];
     elems.forEach((elem) => {
-      files.push(elem.entry.name);
+      fileNames.push(elem.entry.name);
     });
-    window.alert(`TODO: Delete files [${files.toString()}]`);
-    this._clearSelected();
+    if (window.confirm(`Delete files [${fileNames.join(',')}]?`)) {
+      const promises = [];
+      elems.forEach((elem) => {
+        const entry = elem.entry;
+        if (entry.isFile) {
+          promises.push(entry.remove());
+        } else {
+          promises.push(entry.removeRecursively());
+        }
+      });
+      await Promise.all(promises);
+      this._renderDirectory();
+    } else {
+      this._clearSelected();
+    }
   }
 
   async _previewFile(handle) {

@@ -91,6 +91,10 @@ button[disabled] {
   opacity: 0.5;
 }
 
+.dropping {
+  background-color: red;
+}
+
 footer {
   background-color: var(--app-header-bg);
   color: var(--app-header-color);
