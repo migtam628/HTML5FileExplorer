@@ -19,6 +19,10 @@ class HTML5FileExplorer {
 
   /**
    * Create the HTML5FileExplorer app.
+   *
+   * @see https://wicg.github.io/native-file-system/
+   * @see https://github.com/WICG/native-file-system/blob/master/EXPLAINER.md
+   *
    */
   constructor(handle) {
     this._cwd = handle;
@@ -35,6 +39,20 @@ class HTML5FileExplorer {
 
     // Set the current history
     history.replaceState({depth: this._depth}, null, `#!/${handle.name}`);
+
+    this._worker = new Worker('/scripts/worker.js');
+    this._worker.addEventListener('message', (e) => {
+      console.log('Message from worker:', e.data);
+    });
+    this._worker.addEventListener('error', (err) => {
+      console.error('Error from worker', err);
+    });
+    try {
+      this._worker.postMessage({handle: handle});
+    } catch (ex) {
+      // https://bugs.chromium.org/p/chromium/issues/detail?id=955192
+      // console.warn('Unable to postMessage handle to worker', ex);
+    }
 
     // Find & cache the key elements we'll need
     this._footer = document.getElementById('footer');
@@ -311,7 +329,7 @@ class HTML5FileExplorer {
       return;
     }
 
-    console.log('_handleKeystroke', key, keyCode, e);
+    // console.log('_handleKeystroke', key, keyCode, e);
   }
 
 
@@ -674,6 +692,7 @@ class HTML5FileExplorer {
 
   async _showFileInfo(handle) {
     const values = [];
+    console.log('File Info', handle);
     values.push({label: 'Kind', value: handle.type});
     values.push({label: 'Size', value: handle.size});
     values.push({label: 'Where', value: this._path});
@@ -682,6 +701,7 @@ class HTML5FileExplorer {
   }
 
   async _showDirectoryInfo(handle) {
+    console.log('Directory Info', handle);
     const values = [];
     let items = 0;
     values.push({label: 'Kind', value: 'Folder'});
