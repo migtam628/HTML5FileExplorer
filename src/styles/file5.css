@@ -196,6 +196,10 @@ footer {
   user-drag: element;
 }
 
+.entry.hiddenFile {
+  display: none;
+}
+
 .entry.selected {
   background-color: #ccc;
   border-radius: 4px;

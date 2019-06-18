@@ -31,6 +31,7 @@ class HTML5FileExplorer {
       hideHidden: true,
     };
     this._depth = 0;
+    this._entries = [];
 
     // Set the current history
     history.replaceState({depth: this._depth}, null, `#!/${handle.name}`);
@@ -46,6 +47,11 @@ class HTML5FileExplorer {
 
     // Close the start dialog & render the current directory
     this._showDialog('dialogStart', false);
+
+    // Check to see if we have write permissions for the root.
+    this._checkPermissions();
+
+    // Draw the initial contents;
     this._renderDirectory();
 
     // Hook up the back & forward buttons, and history
@@ -135,16 +141,37 @@ class HTML5FileExplorer {
 
   async _handleDroppedFiles(files) {
     const cwd = this._cwd;
-    console.log('_handleDroppedFiles', files);
     for await (const file of files) {
-      console.log('f', file);
-      const fileEntry = await cwd.getFile(file.name, {create:true, exclusive: true});
-      console.log('fe', fileEntry);
-      const writer = await fileEntry.createWriter();
-      await writer.write(0, file);
-      await writer.close();
+      await this._addDroppedFile(file);
     }
-    this._renderDirectory();
+  }
+
+  // **************************************************************
+  // Permissions
+  // **************************************************************
+
+  async _checkPermissions() {
+    let value = await this._hasWritePermission();
+    if (value === 'prompt') {
+      value = await this._requestWritePermission();
+    }
+    console.log(`Permission for ${this._cwd.name} is '${value}'`);
+  }
+
+  async _hasWritePermission(entry) {
+    entry = entry || this._cwd;
+    if (!entry.queryPermission) {
+      return null;
+    }
+    return await entry.queryPermission({writable: true});
+  }
+
+  async _requestWritePermission(entry) {
+    entry = entry || this._cwd;
+    if (!entry.requestPermission) {
+      return null;
+    }
+    return await entry.requestPermission({writable: true});
   }
 
   // **************************************************************
@@ -266,7 +293,7 @@ class HTML5FileExplorer {
     // Delete file
     if (key === 'Delete') {
       e.preventDefault();
-      this._executeDelete();
+      this._deleteFiles();
       return;
     }
 
@@ -313,6 +340,7 @@ class HTML5FileExplorer {
     inner.className = 'file-container-inner';
     this._container.replaceWith(inner);
     this._container = inner;
+    this._entries = [];
   }
 
   async _renderDirectory() {
@@ -323,17 +351,22 @@ class HTML5FileExplorer {
     // TODO: does this need to be await?
     for await (const entry of entries) {
       const elem = this._createElemEntry(entry);
-      this._container.appendChild(elem);
+      this._addEntryAndElem(entry, elem);
     }
     this._updateBackForward();
+  }
+
+  _addEntryAndElem(entry, elem) {
+    const val = this._entries.push(entry);
+    elem.dataset.entryId = val - 1;
+    this._container.appendChild(elem);
   }
 
   _createElemEntry(entry) {
     // Create the main div container
     const entryContainer = document.createElement('div');
     const entryContainerClasses = ['entry'];
-    entryContainer.draggable = true;
-    entryContainer.entry = entry;
+    entryContainer.setAttribute('draggable', true);
     entryContainer.addEventListener('click', (e) => {
       e.stopPropagation();
       this._selectItem(entryContainer);
@@ -345,8 +378,8 @@ class HTML5FileExplorer {
       }
       return this._previewFile(entry);
     });
-    if (entry.name.startsWith('.') && this._settings.hideHidden) {
-      entryContainerClasses.push('hidden');
+    if (entry.name.startsWith('.')) {
+      entryContainerClasses.push('hiddenFile');
     }
 
     // Create the icon
@@ -370,15 +403,11 @@ class HTML5FileExplorer {
       const keyCode = e.keyCode;
       if (keyCode === 13 || keyCode === 27) {
         e.preventDefault();
-        filename.removeAttribute('contenteditable');
         if (keyCode === 27) {
-          filename.textContent = entry.name;
+          this._updateEntryElement(entryContainer);
           return;
         }
-        if (entry.name === filename.textContent) {
-          return;
-        }
-        this._executeRename(entry, filename.textContent);
+        this._renameEntry(entryContainer);
       }
     });
 
@@ -392,6 +421,14 @@ class HTML5FileExplorer {
   // **************************************************************
   // Helpers to update UI elements
   // **************************************************************
+
+  _updateEntryElement(elem) {
+    const handleId = elem.dataset.entryId;
+    const handle = this._entries[handleId];
+    const filenameElem = elem.querySelector('span');
+    filenameElem.removeAttribute('contenteditable');
+    filenameElem.textContent = handle.name;
+  }
 
   _updateBackForward() {
     if (this._history.back.length > 0) {
@@ -429,6 +466,30 @@ class HTML5FileExplorer {
   }
 
   // **************************************************************
+  // Add Dropped File
+  // **************************************************************
+
+  async _addDroppedFile(file) {
+    // TODO: Support directories being dropped.
+    if (file.type === '' || !file.type) {
+      console.warn(`Dragged file has no type, directory?`, file);
+      return;
+    }
+    const createFileOpts = {create: true, exclusive: true};
+    const fileName = await this._getSafeEntryName(file.name);
+    try {
+      const entry = await this._cwd.getFile(fileName, createFileOpts);
+      const writer = await entry.createWriter();
+      await writer.write(0, file);
+      await writer.close();
+      const elem = this._createElemEntry(entry);
+      this._addEntryAndElem(entry, elem);
+    } catch (ex) {
+      console.error(`Drop failed for ${file.name}`, ex);
+    }
+  }
+
+  // **************************************************************
   // Rename
   // **************************************************************
 
@@ -439,36 +500,102 @@ class HTML5FileExplorer {
     filenameElem.focus();
   }
 
-  async _executeRename(handle, newFilename) {
-    try {
-      await handle.moveTo(this._cwd, newFilename);
-    } catch (ex) {
-      console.error('Unable to rename file', ex);
+  async _renameEntry(elem) {
+    const handleId = elem.dataset.entryId;
+    const handle = this._entries[handleId];
+    const filenameElem = elem.querySelector('span');
+    const newName = filenameElem.textContent;
+
+    // Filename hasn't changed, ignore
+    if (newName === handle.name) {
+      return;
     }
-    this._renderDirectory();
+
+    const alreadyExists = await this._doesExist(newName);
+    if (alreadyExists) {
+      console.warn(`RENAME failed: '${newName}' already exists.`);
+    } else {
+      try {
+        const newHandle = await handle.moveTo(this._cwd, newName);
+        this._entries[handleId] = newHandle;
+      } catch (ex) {
+        console.error(`RENAME failed: ${handle.name} -> ${newName}`, ex);
+      }
+    }
+    this._updateEntryElement(elem);
   }
 
   // **************************************************************
   // Create a directory
   // **************************************************************
 
-  async _getUntitledDirectoryName(count) {
-    const dirNameBase = 'Untitled';
-    const dirName = count ? `${dirNameBase} (${count})` : dirNameBase;
-    try {
-      await this._cwd.getDirectory(dirName);
-      return this._getUntitledDirectoryName(++count);
-    } catch (ex) {
-      return dirName;
+  async _doesExist(filename) {
+    const f = await this._doesFileExist(filename);
+    const d = await this._doesDirectoryExist(filename);
+    if (f || d) {
+      return true;
     }
+    return false;
+  }
+
+  async _doesFileExist(filename) {
+    try {
+      // Try to get the file/directory.
+      await this._cwd.getFile(filename);
+      return true;
+    } catch (ex) {
+      return false;
+    }
+  }
+
+  async _doesDirectoryExist(dirName) {
+    try {
+      // Try to get the file/directory.
+      await this._cwd.getDirectory(dirName);
+      return true;
+    } catch (ex) {
+      return false;
+    }
+  }
+
+  async _getSafeEntryName(preferredName, counter) {
+    // Setup the defaults
+    preferredName = preferredName || 'Untitled';
+    counter = counter || 0;
+
+    // Setup place holders
+    let fileName = preferredName;
+    let fileExt;
+
+    // Separate out the extension if it exists. Includes special handling
+    // for files that START with a dot.
+    const lastIndexOfDot = fileName.lastIndexOf('.');
+    if (lastIndexOfDot > 0) {
+      fileExt = preferredName.substr(lastIndexOfDot + 1);
+      fileName = preferredName.substr(0, lastIndexOfDot);
+    }
+
+    // Build the file name into result
+    let result = fileName;
+    if (counter) {
+      result += ` (${counter})`;
+    }
+    if (fileExt) {
+      result += `.${fileExt}`;
+    }
+    // check if the file exists
+    if (await this._doesExist(result)) {
+      return await this._getSafeEntryName(preferredName, ++counter);
+    }
+    return result;
   }
 
   async _addPlaceholderDirectory() {
     const createOpts = {create: true, exclusive: true};
-    const dirName = await this._getUntitledDirectoryName(0);
+    const dirName = await this._getSafeEntryName('Untitled');
     const newDir = await this._cwd.getDirectory(dirName, createOpts);
     const elem = this._createElemEntry(newDir);
-    this._container.appendChild(elem);
+    this._addEntryAndElem(newDir, elem);
     this._selectItem(elem);
     this._makeFilenameEditable(elem);
   }
@@ -477,27 +604,38 @@ class HTML5FileExplorer {
   // Delete a file
   // **************************************************************
 
-  async _executeDelete() {
+  async _deleteFiles() {
     const elems = this._getSelectedItems();
     if (elems.length === 0) {
       return;
     }
     const fileNames = [];
     elems.forEach((elem) => {
-      fileNames.push(elem.entry.name);
+      const entryId = elem.dataset.entryId;
+      const entry = this._entries[entryId];
+      fileNames.push(entry.name);
     });
     if (window.confirm(`Delete files [${fileNames.join(',')}]?`)) {
       const promises = [];
-      elems.forEach((elem) => {
-        const entry = elem.entry;
+      elems.forEach(async (elem) => {
+        const entryId = elem.dataset.entryId;
+        const entry = this._entries[entryId];
         if (entry.isFile) {
-          promises.push(entry.remove());
+          try {
+            await entry.remove();
+            this._container.removeChild(elem);
+          } catch (ex) {
+            log.error(`DELETE failed for: ${entry.name}`, ex);
+          }
         } else {
-          promises.push(entry.removeRecursively());
+          try {
+            await entry.removeRecursively();
+            this._container.removeChild(elem);
+          } catch (ex) {
+            log.error(`DELETE failed for ${entry.name}`, ex);
+          }
         }
       });
-      await Promise.all(promises);
-      this._renderDirectory();
     } else {
       this._clearSelected();
     }
