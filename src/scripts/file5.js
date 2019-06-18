@@ -210,6 +210,12 @@ class HTML5FileExplorer {
 
     // TODO: Handle CTRL-N: Create new directory
 
+    if (e.ctrlKey && key === 'b') {
+      e.preventDefault();
+      this._addPlaceholderDirectory();
+      return;
+    }
+
     // Rename entry if only 1 is selected
     if ((key === 'Enter') || (e.metaKey && key === 'ArrowDown')) {
       e.preventDefault();
@@ -433,8 +439,38 @@ class HTML5FileExplorer {
     filenameElem.focus();
   }
 
-  _executeRename(handle, newFilename) {
-    window.alert(`TODO: Rename '${handle.name}' to '${newFilename}'`)
+  async _executeRename(handle, newFilename) {
+    try {
+      await handle.moveTo(this._cwd, newFilename);
+    } catch (ex) {
+      console.error('Unable to rename file', ex);
+    }
+    this._renderDirectory();
+  }
+
+  // **************************************************************
+  // Create a directory
+  // **************************************************************
+
+  async _getUntitledDirectoryName(count) {
+    const dirNameBase = 'Untitled';
+    const dirName = count ? `${dirNameBase} (${count})` : dirNameBase;
+    try {
+      await this._cwd.getDirectory(dirName);
+      return this._getUntitledDirectoryName(++count);
+    } catch (ex) {
+      return dirName;
+    }
+  }
+
+  async _addPlaceholderDirectory() {
+    const createOpts = {create: true, exclusive: true};
+    const dirName = await this._getUntitledDirectoryName(0);
+    const newDir = await this._cwd.getDirectory(dirName, createOpts);
+    const elem = this._createElemEntry(newDir);
+    this._container.appendChild(elem);
+    this._selectItem(elem);
+    this._makeFilenameEditable(elem);
   }
 
   // **************************************************************
