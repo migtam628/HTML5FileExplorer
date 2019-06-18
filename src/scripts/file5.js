@@ -27,87 +27,110 @@ class HTML5FileExplorer {
       forward: [],
     };
     this._path = `/${handle.name}`;
+    this._settings = {
+      hideHidden: true,
+    };
     this._depth = 0;
 
+    // Set the current history
     history.replaceState({depth: this._depth}, null, `#!/${handle.name}`);
 
+    // Find & cache the key elements we'll need
     this._footer = document.getElementById('footer');
     this._headerText = document.querySelector('header h1');
     this._container = document.querySelector('.file-container-inner');
     this._previewContainer = document.getElementById('preview-container');
     this._previewTitle = document.querySelector('#dialogPreview .dialog-title');
+    this._backButton = document.getElementById('butBack');
+    this._forwardButton = document.getElementById('butForward');
 
+    // Close the start dialog & render the current directory
     this._showDialog('dialogStart', false);
     this._renderDirectory();
 
-    this._butRefresh = document.getElementById('butRefresh');
-    this._butRefresh.addEventListener('click', () => {
-      this._renderDirectory();
-    });
-
-    this._butHelp = document.getElementById('butHelp');
-    this._butHelp.addEventListener('click', () => {
-      this._showDialog('dialogAbout', true);
-    });
-
-    this._backButton = document.getElementById('butBack');
+    // Hook up the back & forward buttons, and history
     this._backButton.addEventListener('click', () => {
       window.history.back();
     });
-
-    this._forwardButton = document.getElementById('butForward');
     this._forwardButton.addEventListener('click', () => {
       window.history.forward();
     });
+    window.addEventListener('popstate', (e) => {
+      this._handlePopState(e);
+    });
 
+    // Hook up the refresh button
+    const butRefresh = document.getElementById('butRefresh');
+    butRefresh.addEventListener('click', () => {
+      this._renderDirectory();
+    });
+
+    // Hook up the help button
+    const butHelp = document.getElementById('butHelp');
+    butHelp.addEventListener('click', () => {
+      this._showDialog('dialogAbout', true);
+    });
+
+    // Listen for key strokes
     document.addEventListener('keydown', (e) => {
       this._handleKeystroke(e);
     });
 
+    // Listen for clicks on the document body & clear selected item.
     document.addEventListener('click', (e) => {
       this._clearSelected();
     });
 
-    window.addEventListener('popstate', (e) => {
-      const curDepth = this._depth;
-      const newDepth = e.state.depth;
-      if (newDepth < curDepth) {
-        this._navBack();
-      } else if (newDepth > curDepth) {
-        this._navForward();
-      }
-    });
-
     // Setup the DnD listeners for file drop.
     document.body.addEventListener('dragenter', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      console.log('drag-enter');
-      document.body.classList.add('dropping');
+      this._handleDragEnter(e);
     });
 
     document.body.addEventListener('dragover', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      console.log('drag-over');
-      e.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
+      this._handleDragOver(e);
     });
 
     document.body.addEventListener('dragleave', (e) => {
-      // TODO: Fix this.
-      document.body.classList.remove('dropping');
-      console.log('drag-leave');
+      this._handleDragLeave(e);
     });
 
     document.body.addEventListener('drop', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      console.log('drop');
-      this._handleDroppedFiles(e.dataTransfer.files);
-      document.body.classList.remove('dropping');
+      this._handleDrop(e);
     });
 
     this._initDialogs();
+  }
+
+  // **************************************************************
+  // Drag and Drop handlers
+  // **************************************************************
+
+  _handleDrop(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    console.log('drop');
+    this._handleDroppedFiles(e.dataTransfer.files);
+    document.body.classList.remove('dropping');
+  }
+
+  _handleDragLeave(e) {
+    // TODO: Fix this.
+    document.body.classList.remove('dropping');
+    console.log('drag-leave');
+  }
+
+  _handleDragEnter(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    console.log('drag-enter');
+    document.body.classList.add('dropping');
+  }
+
+  _handleDragOver(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    console.log('drag-over');
+    e.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
   }
 
   async _handleDroppedFiles(files) {
@@ -123,6 +146,56 @@ class HTML5FileExplorer {
     }
     this._renderDirectory();
   }
+
+  // **************************************************************
+  // History & Pop State
+  // **************************************************************
+
+  _handlePopState(e) {
+    const curDepth = this._depth;
+    const newDepth = e.state.depth;
+    if (newDepth < curDepth) {
+      this._navBack();
+    } else if (newDepth > curDepth) {
+      this._navForward();
+    }
+  }
+
+  _navBack() {
+    if (this._history.back.length === 0) {
+      return;
+    }
+    this._history.forward.push(this._cwd);
+    this._cwd = this._history.back.pop();
+    this._depth--;
+    this._path = this._path.substr(0, this._path.lastIndexOf('/'));
+    this._renderDirectory();
+  }
+
+  _navForward() {
+    if (this._history.forward.length === 0) {
+      return;
+    }
+    this._history.back.push(this._cwd);
+    this._cwd = this._history.forward.pop();
+    this._depth++;
+    this._path += `/${this._cwd.name}`;
+    this._renderDirectory();
+  }
+
+  _navOpen(newDir) {
+    this._history.back.push(this._cwd);
+    this._history.forward = [];
+    this._cwd = newDir;
+    this._depth++;
+    this._path += `/${newDir.name}`;
+    this._renderDirectory();
+    history.pushState({depth: this._depth}, null, `#!${this._path}`);
+  }
+
+  // **************************************************************
+  // TBD
+  // **************************************************************
 
   _itemsPerRow(item, container) {
     const itemWidth = item.offsetWidth;
@@ -201,43 +274,11 @@ class HTML5FileExplorer {
     console.log('_handleKeystroke', key, keyCode, e);
   }
 
-  _handleKeystrokeElement(e) {
-    const key = e.key;
-    const keyCode = e.keyCode;
-    console.log('_handleKeystrokeElement', e, key, keyCode);
-  }
 
-  _navBack() {
-    if (this._history.back.length === 0) {
-      return;
-    }
-    this._history.forward.push(this._cwd);
-    this._cwd = this._history.back.pop();
-    this._depth--;
-    this._path = this._path.substr(0, this._path.lastIndexOf('/'));
-    this._renderDirectory();
-  }
 
-  _navForward() {
-    if (this._history.forward.length === 0) {
-      return;
-    }
-    this._history.back.push(this._cwd);
-    this._cwd = this._history.forward.pop();
-    this._depth++;
-    this._path += `/${this._cwd.name}`;
-    this._renderDirectory();
-  }
-
-  _navOpen(newDir) {
-    this._history.back.push(this._cwd);
-    this._history.forward = [];
-    this._cwd = newDir;
-    this._depth++;
-    this._path += `/${newDir.name}`;
-    this._renderDirectory();
-    history.pushState({depth: this._depth}, null, `#!${this._path}`);
-  }
+  // **************************************************************
+  // Dialog Helpers
+  // **************************************************************
 
   _showDialog(id, visible) {
     const container = document.getElementById('dialogContainer');
@@ -257,6 +298,10 @@ class HTML5FileExplorer {
     });
   }
 
+  // **************************************************************
+  // Render contents of a directory
+  // **************************************************************
+
   _clearFolder() {
     const inner = document.createElement('div');
     inner.className = 'file-container-inner';
@@ -266,32 +311,49 @@ class HTML5FileExplorer {
 
   async _renderDirectory() {
     this._clearFolder();
-    const cwd = this._cwd;
-    this._headerText.textContent = cwd.name;
-    const entries = await cwd.getEntries();
-    for await (const entry of entries) {
-      this._addEntry(entry);
-    }
+    this._headerText.textContent = this._cwd.name;
     this._footer.textContent = this._path;
+    const entries = await this._cwd.getEntries();
+    // TODO: does this need to be await?
+    for await (const entry of entries) {
+      const elem = this._createElemEntry(entry);
+      this._container.appendChild(elem);
+    }
     this._updateBackForward();
   }
 
-  _addEntry(entry) {
+  _createElemEntry(entry) {
+    // Create the main div container
     const entryContainer = document.createElement('div');
-    entryContainer.className = 'entry';
+    const entryContainerClasses = ['entry'];
     entryContainer.draggable = true;
     entryContainer.entry = entry;
+    entryContainer.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._selectItem(entryContainer);
+    });
+    entryContainer.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      if (entry.isDirectory) {
+        return this._navOpen(entry);
+      }
+      return this._previewFile(entry);
+    });
+    if (entry.name.startsWith('.') && this._settings.hideHidden) {
+      entryContainerClasses.push('hidden');
+    }
+
+    // Create the icon
     const img = document.createElement('img');
     if (entry.isDirectory) {
       img.src = '/images/ic_folder_black_48dp.svg';
     } else {
       img.src = '/images/ic_insert_drive_file_black_48dp.svg';
     }
-    entryContainer.appendChild(img);
+
+    // Create the filename element
     const filename = document.createElement('span');
     filename.textContent = entry.name;
-    entryContainer.appendChild(filename);
-    // TODO: Is this a hack?
     filename.addEventListener('click', () => {
       if (entryContainer.classList.contains('selected')) {
         this._makeFilenameEditable(entryContainer);
@@ -313,19 +375,35 @@ class HTML5FileExplorer {
         this._executeRename(entry, filename.textContent);
       }
     });
-    entryContainer.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this._selectItem(entryContainer);
-    });
-    entryContainer.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      if (entry.isDirectory) {
-        return this._navOpen(entry);
-      }
-      return this._previewFile(entry);
-    });
-    this._container.appendChild(entryContainer);
+
+    // Build the element
+    entryContainer.className = entryContainerClasses.join(' ');
+    entryContainer.appendChild(img);
+    entryContainer.appendChild(filename);
+    return entryContainer;
   }
+
+  // **************************************************************
+  // Helpers to update UI elements
+  // **************************************************************
+
+  _updateBackForward() {
+    if (this._history.back.length > 0) {
+      this._backButton.removeAttribute('disabled');
+    } else {
+      this._backButton.setAttribute('disabled', true);
+    }
+    if (this._history.forward.length > 0) {
+      this._forwardButton.removeAttribute('disabled');
+    } else {
+      this._forwardButton.setAttribute('disabled', true);
+    }
+  }
+
+
+  // **************************************************************
+  // Helpers for selected elements
+  // **************************************************************
 
   _getSelectedItems() {
     return document.querySelectorAll('.entry.selected');
@@ -344,6 +422,10 @@ class HTML5FileExplorer {
     }
   }
 
+  // **************************************************************
+  // Rename
+  // **************************************************************
+
   _makeFilenameEditable(elem) {
     const filenameElem = elem.querySelector('span');
     filenameElem.setAttribute('contenteditable', true);
@@ -354,6 +436,10 @@ class HTML5FileExplorer {
   _executeRename(handle, newFilename) {
     window.alert(`TODO: Rename '${handle.name}' to '${newFilename}'`)
   }
+
+  // **************************************************************
+  // Delete a file
+  // **************************************************************
 
   async _executeDelete() {
     const elems = this._getSelectedItems();
@@ -381,7 +467,12 @@ class HTML5FileExplorer {
     }
   }
 
+  // **************************************************************
+  // Preview a file
+  // **************************************************************
+
   async _previewFile(handle) {
+    const imgExtensions = ['jpg', 'png', 'gif', 'svg'];
     try {
       const file = await handle.getFile();
       console.log('h', handle);
@@ -395,14 +486,15 @@ class HTML5FileExplorer {
       let canPreview = false;
       if (extension === 'json' || extension === 'txt') {
         canPreview = await this._previewText(file);
-      } else if (extension === 'png') {
+      } else if (imgExtensions.includes(extension)) {
         canPreview = await this._previewImage(file);
       }
       if (canPreview) {
         this._previewTitle.textContent = handle.name;
         this._showDialog('dialogPreview', true);
       } else {
-        console.log('nope');
+        // TODO
+        window.alert(`No preview available for ${extension} files`);
       }
     } catch (ex) {
       console.error('err', ex);
@@ -428,16 +520,4 @@ class HTML5FileExplorer {
     return true;
   }
 
-  _updateBackForward() {
-    if (this._history.back.length > 0) {
-      this._backButton.removeAttribute('disabled');
-    } else {
-      this._backButton.setAttribute('disabled', true);
-    }
-    if (this._history.forward.length > 0) {
-      this._forwardButton.removeAttribute('disabled');
-    } else {
-      this._forwardButton.setAttribute('disabled', true);
-    }
-  }
 }
