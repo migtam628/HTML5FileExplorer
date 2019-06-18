@@ -196,7 +196,7 @@ footer {
   user-drag: element;
 }
 
-.entry.hiddenFile {
+.hide-hidden .entry.hiddenFile {
   display: none;
 }
 
@@ -220,4 +220,9 @@ footer {
   margin-right: auto;
   text-align: center;
   overflow-wrap: break-word;
+}
+
+#dialogInfo .label {
+  font-weight: bold;
+  padding-right: 1em;
 }

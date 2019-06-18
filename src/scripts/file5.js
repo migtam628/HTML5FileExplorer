@@ -42,6 +42,8 @@ class HTML5FileExplorer {
     this._container = document.querySelector('.file-container-inner');
     this._previewContainer = document.getElementById('preview-container');
     this._previewTitle = document.querySelector('#dialogPreview .dialog-title');
+    this._infoContainer = document.getElementById('info-container');
+    this._infoTitle = document.querySelector('#dialogInfo .dialog-title');
     this._backButton = document.getElementById('butBack');
     this._forwardButton = document.getElementById('butForward');
 
@@ -236,10 +238,15 @@ class HTML5FileExplorer {
     const keyCode = e.keyCode;
 
     // TODO: Handle CTRL-N: Create new directory
-
-    if (e.ctrlKey && key === 'b') {
+    if ((e.ctrlKey && key === 'n') || (e.metaKey && key === 'n')) {
       e.preventDefault();
-      this._addPlaceholderDirectory();
+      this._createDirectory();
+      return;
+    }
+
+    if ((e.ctrlKey && key === 'i') || (e.metaKey && key === 'i')) {
+      e.preventDefault();
+      this._showInfo();
       return;
     }
 
@@ -328,6 +335,10 @@ class HTML5FileExplorer {
     const preview = document.getElementById('dialogPreview');
     preview.querySelector('.close').addEventListener('click', () => {
       this._showDialog('dialogPreview', false);
+    });
+    const info = document.getElementById('dialogInfo');
+    info.querySelector('.close').addEventListener('click', () => {
+      this._showDialog('dialogInfo', false);
     });
   }
 
@@ -590,7 +601,7 @@ class HTML5FileExplorer {
     return result;
   }
 
-  async _addPlaceholderDirectory() {
+  async _createDirectory() {
     const createOpts = {create: true, exclusive: true};
     const dirName = await this._getSafeEntryName('Untitled');
     const newDir = await this._cwd.getDirectory(dirName, createOpts);
@@ -639,6 +650,67 @@ class HTML5FileExplorer {
     } else {
       this._clearSelected();
     }
+  }
+
+  // **************************************************************
+  // Show File Info
+  // **************************************************************
+
+  async _showInfo() {
+    const elems = this._getSelectedItems();
+    if (elems.length !== 1) {
+      return;
+    }
+    const elem = elems[0];
+    const entryId = elem.dataset.entryId;
+    const entry = this._entries[entryId];
+    this._infoTitle.textContent = entry.name;
+    if (entry.isFile) {
+      this._showFileInfo(await entry.getFile());
+    } else {
+      this._showDirectoryInfo(entry);
+    }
+  }
+
+  async _showFileInfo(handle) {
+    const values = [];
+    values.push({label: 'Kind', value: handle.type});
+    values.push({label: 'Size', value: handle.size});
+    values.push({label: 'Where', value: this._path});
+    values.push({label: 'Last Modified', value: handle.lastModifiedDate});
+    this._showInfoDialog(values);
+  }
+
+  async _showDirectoryInfo(handle) {
+    const values = [];
+    let items = 0;
+    values.push({label: 'Kind', value: 'Folder'});
+    const entries = await handle.getEntries();
+    for await (const entry of entries) {
+      items++;
+    }
+    values.push({label: 'Items', value: items});
+    values.push({label: 'Where', value: this._path});
+    this._showInfoDialog(values);
+  }
+
+  _showInfoDialog(values) {
+    const container = document.createElement('div');
+    values.forEach((item) => {
+      const elem = document.createElement('div');
+      const elemLabel = document.createElement('span');
+      elemLabel.className = 'label';
+      elemLabel.textContent = item.label + ':';
+      const elemValue = document.createElement('span');
+      elemValue.className = 'value';
+      elemValue.textContent = item.value;
+      elem.appendChild(elemLabel);
+      elem.appendChild(elemValue);
+      container.appendChild(elem);
+    });
+    this._infoContainer.replaceWith(container);
+    this._infoContainer = container;
+    this._showDialog('dialogInfo', true);
   }
 
   // **************************************************************

@@ -116,7 +116,7 @@ Author: Pete LePage (petele@google.com)
     </button>
   </header>
 
-  <div class="file-container grid">
+  <div class="file-container grid hide-hidden">
     <div class="file-container-inner">
     </div>
   </div>
@@ -163,6 +163,18 @@ Author: Pete LePage (petele@google.com)
       </div>
     </div>
 
+    <div class="dialog hidden" id="dialogInfo">
+      <div class="dialog-title">
+        filename
+      </div>
+      <div class="dialog-body">
+        <div id="info-container"></div>
+      </div>
+      <div class="dialog-buttons">
+        <button type="button" class="close">Close</button>
+      </div>
+    </div>
+
     <div class="dialog hidden" id="dialogAbout">
       <div class="dialog-title">
         About
@@ -170,26 +182,17 @@ Author: Pete LePage (petele@google.com)
       <div class="dialog-body">
         <p>
           <b>What works?</b><br>
-          File Operations:
-            New Directory (CTRL-B), Delete (file &amp; directory),
-            Rename (file &amp; directory), File preview (basic)
-          <br>
-          Drag/Drop: Drag file in
-          <br>
-          Layout: Grid
+            New directory (CTRL-N, APPLE-N), Delete (DEL),
+            Rename (Enter or single click), File preview (Double click),
+            File info (CTRL-I), Drag file(s) in, Grid layout
         </p>
         <p>
           <b>Not yet implemented?</b><br>
-          File Operations:
-            Copy/Paste, Share File, File Info, File Preview (advanced)
-          <br>
-          Drag/Drop: Drag file out, Drag directory in, Drag move
-          <br>
-          Layout: List, Sorted Files
-          <br>
-          Other: Show/Hide hidden files
+            Copy/Paste, Share File, File Preview (advanced), Drag file out,
+            Drag directory in, Drag move, List layout, Sort files,
+            Hide/Show hidden files
         </p>
-        <p>
+        <p style="display: none;">
           <b>Author:</b> <a href="https://github.com/petele">Pete LePage</a><br>
           <b>Version:</b> [[VERSION]]<br>
           <b>Build date:</b> [[BUILD_DATE]]<br>
